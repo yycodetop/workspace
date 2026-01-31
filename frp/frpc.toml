@@ -1,0 +1,13 @@
+serverAddr = "139.159.233.180"
+serverPort = 7000
+
+[auth]
+method = "token"
+token = "727a5c15-a932-4ddb-8a9d-1ee6f22052e4"
+
+[[proxies]]
+name = "test-tcp"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 3001
+remotePort = 6000

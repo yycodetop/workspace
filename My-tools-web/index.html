@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>原因 | 企业级协作平台</title>
+
+    <script src="/libs/tailwindcss.js"></script>
+    
+    <link rel="stylesheet" href="/libs/fontawesome/css/all.min.css"> 
+
+    <script src="/libs/vue.global.js"></script>
+    
+    <script src="/libs/marked.min.js"></script>
+
+    <link rel="stylesheet" href="/libs/katex.min.css">
+    <script src="/libs/katex.min.js"></script>
+    <script src="/libs/pdf.min.js"></script>
+    
+    <script>
+        // 设置 PDF.js worker 的本地路径
+        if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/libs/pdf.worker.min.js';
+        }
+    </script>
+    <!-- <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> -->
+    
+    <style>
+        /* 深色滚动条美化 */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #666; }
+
+        /* 动画类 */
+        .animate-bounce-in { animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .animate-fade-in-up { animation: fadeInUp 0.3s ease-out forwards; }
+        @keyframes bounceIn { 0% { opacity: 0; transform: translate(-50%, -20px); } 100% { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        [v-cloak] { display: none; }
+        body { background-color: #020408; color: #e0e0e0; overflow: hidden; }
+        
+        /* 侧边栏按钮激活态 */
+        .sidebar-btn.active { color: #00d2ff; background: rgba(255, 255, 255, 0.1); }
+    </style>
+
+    <script src="login.js"></script>    
+    <script src="todo-list.js"></script>
+    <script src="idea-hub.js"></script>
+    <script src="admin-system.js"></script>
+    <script src="user-profile.js"></script>
+    <script src="resource-hub.js"></script>
+    <script src="skill-wall.js"></script>
+    <script src="teleprompter.js"></script> 
+    
+</head>
+<body class="h-screen w-screen flex font-sans selection:bg-cyan-500/30">
+
+    <nav id="sidebar" class="w-16 bg-[#06080e] border-r border-white/5 flex flex-col items-center py-6 gap-6 z-50 hidden">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-white shadow-lg cursor-pointer hover:scale-105 transition-transform" onclick="switchTab('tasks')" title="首页">
+            <i class="fa-solid fa-cube text-lg"></i>
+        </div>
+
+        <div class="flex-1 flex flex-col gap-4 w-full px-2">
+            
+            <button onclick="switchTab('tasks')" id="btn-tasks" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-cyan-400 hover:bg-white/5 transition-all">
+                <i class="fa-solid fa-satellite-dish text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">任务指挥</div>
+            </button>
+
+            <button onclick="switchTab('teleprompter')" id="btn-teleprompter" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-cyan-400 hover:bg-white/5 transition-all">
+                <i class="fa-solid fa-clapperboard text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">录课提词</div>
+            </button>
+
+            <button onclick="switchTab('resources')" id="btn-resources" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-pink-400 hover:bg-white/5 transition-all hidden">
+                <i class="fa-solid fa-globe text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">资源补给</div>
+            </button>
+
+            <button onclick="switchTab('skills')" id="btn-skills" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-indigo-400 hover:bg-white/5 transition-all hidden">
+                <i class="fa-solid fa-layer-group text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">技能墙</div>
+            </button>
+
+            <button onclick="switchTab('ideas')" id="btn-ideas" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-amber-400 hover:bg-white/5 transition-all hidden">
+                <i class="fa-regular fa-lightbulb text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">创意树洞</div>
+            </button>
+
+            <div class="h-px w-8 bg-white/5 mx-auto my-1"></div>
+
+            <button onclick="switchTab('admin')" id="btn-admin" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-purple-900 hover:text-purple-400 hover:bg-purple-900/10 transition-all hidden">
+                <i class="fa-solid fa-shield-halved text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 text-purple-400 whitespace-nowrap">系统管理</div>
+            </button>
+        </div>
+
+        <div class="flex flex-col gap-3 pb-2">
+            <button onclick="switchTab('profile')" id="btn-profile" class="sidebar-btn group relative w-10 h-10 rounded-full flex items-center justify-center border-2 border-transparent hover:border-cyan-500/50 transition-all overflow-hidden bg-gray-800">
+                <img id="sidebar-avatar" src="" class="w-full h-full object-cover hidden">
+                <i id="sidebar-icon" class="fa-regular fa-user text-gray-400"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">个人中心</div>
+            </button>
+
+            <button onclick="logout()" class="w-10 h-10 rounded-xl flex items-center justify-center text-gray-600 hover:text-red-400 transition-all" title="退出">
+                <i class="fa-solid fa-right-from-bracket text-lg"></i>
+            </button>
+        </div>
+    </nav>
+
+    <main id="app" class="flex-1 relative h-full w-full overflow-hidden bg-[#020408]"></main>
+
+    <script>
+        const { createApp } = Vue;
+        let currentApp = null;
+        let myPermissions = {};
+
+        // 1. 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('authToken');
+            try {
+                const savedPerms = localStorage.getItem('authPerms');
+                if (savedPerms) myPermissions = JSON.parse(savedPerms);
+            } catch(e) {}
+
+            if (token) {
+                initSidebar();
+                // 默认跳转到任务页，或保持上次状态
+                if (localStorage.getItem('authUsername') === 'admin') switchTab('admin');
+                else switchTab('tasks');
+            } else {
+                showLogin();
+            }
+        });
+
+        window.addEventListener('profile-updated', updateSidebarAvatar);
+
+        // 2. 登录包装器
+        const LoginWrapper = {
+            template: `<component :is="comp" @login-success="onSuccess"></component>`,
+            setup() {
+                if (typeof LoginComponent === 'undefined') return { comp: { template: '<div class="text-white p-10">❌ 错误：login.js 未加载</div>' } };
+                const onSuccess = (data) => {
+                    if(data && data.permissions) myPermissions = data.permissions;
+                    localStorage.setItem('authPerms', JSON.stringify(myPermissions));
+                    if(data.avatar) localStorage.setItem('authAvatar', data.avatar);
+                    initSidebar();
+                    if (data.username === 'admin') switchTab('admin');
+                    else switchTab('tasks');
+                };
+                return { comp: LoginComponent, onSuccess };
+            }
+        };
+
+        function showLogin() {
+            if (currentApp) { currentApp.unmount(); currentApp = null; }
+            document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('app').innerHTML = '<div id="login-root" class="h-full w-full"></div>';
+            currentApp = createApp(LoginWrapper);
+            currentApp.mount('#login-root');
+        }
+
+        function initSidebar() {
+            document.getElementById('sidebar').classList.remove('hidden');
+            updateSidebarAvatar();
+            const username = localStorage.getItem('authUsername');
+            const hasPerm = (menuId, action = 'view') => {
+                if (username === 'admin') return true;
+                if (!myPermissions || !myPermissions[menuId]) return false;
+                return myPermissions[menuId].includes(action);
+            };
+            const toggle = (id, show) => {
+                const el = document.getElementById(id);
+                if(el) show ? el.classList.remove('hidden') : el.classList.add('hidden');
+            };
+            
+            // 菜单权限控制
+            toggle('btn-tasks', true);
+            toggle('btn-teleprompter', true); // 提词器全员可见
+            toggle('btn-resources', true);
+            toggle('btn-skills', true);
+            toggle('btn-ideas', hasPerm('ideas'));
+            toggle('btn-admin', hasPerm('admin'));
+        }
+
+        function updateSidebarAvatar() {
+            const avatar = localStorage.getItem('authAvatar');
+            const imgEl = document.getElementById('sidebar-avatar');
+            const iconEl = document.getElementById('sidebar-icon');
+            if (avatar && avatar !== 'undefined' && avatar !== '') {
+                imgEl.src = avatar;
+                imgEl.classList.remove('hidden');
+                iconEl.classList.add('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+                iconEl.classList.remove('hidden');
+            }
+        }
+
+        // 3. 核心路由切换逻辑
+        window.switchTab = function(tabName) {
+            // 清理高亮
+            document.querySelectorAll('.sidebar-btn').forEach(btn => {
+                btn.classList.remove('active', 'text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-indigo-400', 'text-amber-400', 'bg-white/10', 'bg-purple-900/10', 'border-cyan-500');
+                if(btn.id !== 'btn-profile') btn.classList.add('text-gray-500');
+                if(btn.id === 'btn-profile') btn.classList.add('border-transparent');
+            });
+
+            // 设置高亮
+            const btn = document.getElementById(`btn-${tabName}`);
+            if (btn) {
+                btn.classList.remove('text-gray-500');
+                btn.classList.add('active'); // 触发CSS active样式
+                
+                // 特定颜色覆盖
+                if (tabName === 'admin') btn.classList.add('text-purple-400', 'bg-purple-900/10');
+                else if (tabName === 'teleprompter') btn.classList.add('text-cyan-400');
+                else btn.classList.add('text-cyan-400');
+            }
+
+            // 挂载组件
+            if (currentApp) { currentApp.unmount(); currentApp = null; }
+            document.getElementById('app').innerHTML = `<div id="vue-root-${tabName}" class="h-full w-full"></div>`;
+
+            let TargetComponent = null;
+            // 路由映射
+            if (tabName === 'tasks') TargetComponent = (typeof TodoListComponent !== 'undefined') ? TodoListComponent : null;
+            else if (tabName === 'teleprompter') TargetComponent = (typeof TeleprompterComponent !== 'undefined') ? TeleprompterComponent : null;
+            else if (tabName === 'resources') TargetComponent = (typeof ResourceHubComponent !== 'undefined') ? ResourceHubComponent : null;
+            else if (tabName === 'skills') TargetComponent = (typeof SkillWallComponent !== 'undefined') ? SkillWallComponent : null;
+            else if (tabName === 'admin') TargetComponent = (typeof AdminSystemComponent !== 'undefined') ? AdminSystemComponent : null;
+            else if (tabName === 'profile') TargetComponent = (typeof UserProfileComponent !== 'undefined') ? UserProfileComponent : null;
+            else if (tabName === 'ideas') TargetComponent = (typeof IdeaHubComponent !== 'undefined') ? IdeaHubComponent : null;
+
+            if (TargetComponent) {
+                currentApp = createApp(TargetComponent);
+                // 注入权限检查方法
+                currentApp.config.globalProperties.$hasPerm = (m, a) => {
+                    if(localStorage.getItem('authUsername')==='admin') return true;
+                    return myPermissions[m]?.includes(a);
+                };
+                currentApp.mount(`#vue-root-${tabName}`);
+            } else {
+                document.getElementById('app').innerHTML = `<div class="text-white p-10 text-center">⚠️ 组件 ${tabName} 加载失败，请检查 JS 文件是否引入</div>`;
+            }
+        };
+
+        window.logout = function() {
+            if(confirm('确定退出?')) { localStorage.clear(); showLogin(); }
+        };
+
+        // 注册全局
+        const app = createApp({});
+    </script>
+</body>
+</html>

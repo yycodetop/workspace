@@ -1,0 +1,108 @@
+/* teleprompter.css - V4.0 Shared & Settings Update */
+
+#teleprompter-root {
+    --accent: #00d2ff;
+    --accent-glow: rgba(0, 210, 255, 0.4);
+    --bg-panel: #1a1b20;
+    --bg-light: #25262e;
+    --border: #333;
+    --text-gray: #a0a0a0;
+    --danger: #ff4757;
+    --success: #2ed573;
+}
+
+/* 基础重置 */
+#teleprompter-root { height: 100%; width: 100%; position: relative; overflow: hidden; background-color: #0f1014; color: #e0e0e0; font-family: sans-serif; display: flex; flex-direction: column; }
+#teleprompter-root button { cursor: pointer; border: none; outline: none; transition: all 0.2s; font-family: inherit; line-height: normal; }
+#teleprompter-root h1, #teleprompter-root h2, #teleprompter-root h3 { margin: 0; font-weight: bold; line-height: 1.2; }
+
+/* 顶部控制栏 */
+#teleprompter-root .controls { height: 68px; flex-shrink: 0; background-color: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 50; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+#teleprompter-root .control-group { display: flex; align-items: center; gap: 12px; }
+
+/* 按钮通用 */
+#teleprompter-root .tool-btn { background: transparent !important; color: var(--text-gray) !important; padding: 6px 10px; border-radius: 8px; min-width: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; border: 1px solid transparent !important; }
+#teleprompter-root .tool-btn:hover { background: rgba(255,255,255,0.05) !important; color: #fff !important; }
+#teleprompter-root .tool-btn.active { background: rgba(0, 210, 255, 0.1) !important; color: var(--accent) !important; }
+#teleprompter-root .tool-btn i { font-size: 18px; margin-bottom: 2px; }
+
+/* 播放按钮 */
+#teleprompter-root .play-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--accent) !important; color: #000 !important; font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px var(--accent-glow); padding: 0 !important; }
+#teleprompter-root .play-btn:hover { transform: scale(1.1); box-shadow: 0 0 30px var(--accent-glow); }
+
+/* 参数滑块组 (语速、字号、宽度) */
+#teleprompter-root .param-group { display: flex; align-items: center; gap: 15px; background: #2a2c35; padding: 6px 15px; border-radius: 20px; border: 1px solid #444; }
+#teleprompter-root .slider-item { display: flex; align-items: center; gap: 8px; font-size: 12px; font-family: monospace; color: #888; }
+#teleprompter-root .slider-item label { margin: 0; font-weight: bold; cursor: help; }
+#teleprompter-root input[type="range"] { width: 80px; height: 4px; border-radius: 2px; background: #555; -webkit-appearance: none; appearance: none; margin: 0; cursor: pointer; }
+#teleprompter-root input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; transition: transform 0.1s; }
+#teleprompter-root input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+#teleprompter-root .divider-v { width: 1px; height: 20px; background: #444; }
+
+/* 共享状态指示 */
+#teleprompter-root .share-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-top: 4px; background: #333; color: #666; border: 1px solid #444; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
+#teleprompter-root .share-badge.is-shared { background: rgba(46, 213, 115, 0.1); color: var(--success); border-color: rgba(46, 213, 115, 0.3); }
+#teleprompter-root .share-badge:hover { filter: brightness(1.2); }
+
+/* 主视口 */
+#teleprompter-root .main-layout { display: flex; flex: 1; height: calc(100% - 68px); overflow: hidden; position: relative; width: 100%; }
+#teleprompter-root .prompter-container { flex: 1; background: #000; position: relative; overflow-y: auto; overflow-x: hidden; perspective: 1000px; display: flex; justify-content: center; }
+#teleprompter-root .prompter-container::-webkit-scrollbar { width: 0; }
+
+#teleprompter-root .scroll-content { width: 85%; max-width: 2000px; padding: 0; will-change: transform; transition: width 0.3s; }
+
+#teleprompter-root .text-line { font-size: 46px; line-height: 1.5; color: #555; padding: 12px 30px; margin-bottom: 24px; border-radius: 12px; transform-origin: left center; opacity: 0.5; filter: blur(1px); transition: all 0.3s; border-left: 5px solid transparent; cursor: default; box-sizing: border-box; }
+#teleprompter-root .edit-mode .text-line { cursor: pointer; }
+#teleprompter-root .edit-mode .text-line:hover { background: rgba(255,255,255,0.05); border-left-color: #444; }
+#teleprompter-root .text-line.active { color: #fff; transform: scale(1.02); opacity: 1; filter: blur(0); font-weight: bold; background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent); border-left-color: var(--accent); text-shadow: 0 4px 20px rgba(0,0,0,0.8); }
+
+/* 右侧面板 */
+#teleprompter-root .right-panel { width: 320px; background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; z-index: 40; transition: width 0.3s ease; flex-shrink: 0; }
+#teleprompter-root .panel-header { display: flex; border-bottom: 1px solid var(--border); background: #202127; flex-shrink: 0; }
+#teleprompter-root .tab-btn { flex: 1; padding: 14px; background: transparent; color: #888; font-size: 13px; font-weight: bold; border-bottom: 2px solid transparent; }
+#teleprompter-root .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(0,210,255,0.05); }
+#teleprompter-root .panel-body { flex: 1; overflow-y: auto; padding: 15px; }
+
+/* 历史库弹窗 (含 Tabs) */
+#teleprompter-root .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+#teleprompter-root .modal-box { background: #1a1c23; width: 500px; max-width: 90%; max-height: 85vh; border-radius: 16px; border: 1px solid #444; box-shadow: 0 20px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; overflow: hidden; animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes modalPop { from { transform: scale(0.9) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+#teleprompter-root .modal-header { padding: 20px 25px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; background: #202127; }
+#teleprompter-root .history-tabs { display: flex; gap: 20px; }
+#teleprompter-root .history-tab { background: transparent; color: #888; font-size: 14px; font-weight: bold; cursor: pointer; padding-bottom: 5px; border-bottom: 2px solid transparent; transition: all 0.2s; }
+#teleprompter-root .history-tab:hover { color: #fff; }
+#teleprompter-root .history-tab.active { color: #fff; border-bottom-color: var(--accent); }
+
+#teleprompter-root .modal-body { padding: 25px; overflow-y: auto; flex: 1; }
+#teleprompter-root .history-list { display: grid; gap: 12px; }
+#teleprompter-root .history-item { background: #25262e; border: 1px solid #333; border-radius: 10px; padding: 15px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+#teleprompter-root .history-item:hover { border-color: var(--accent); background: #2a2c35; transform: translateY(-2px); }
+#teleprompter-root .item-main { display: flex; align-items: center; gap: 15px; }
+#teleprompter-root .item-icon { width: 40px; height: 40px; background: #1a1b20; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666; font-size: 20px; }
+#teleprompter-root .item-title { font-weight: bold; color: #eee; font-size: 14px; margin-bottom: 4px; }
+#teleprompter-root .item-meta { font-size: 11px; color: #666; display: flex; gap: 12px; }
+#teleprompter-root .item-actions { display: flex; gap: 8px; }
+#teleprompter-root .btn-mini { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.05); color: #ccc; }
+#teleprompter-root .btn-mini:hover { background: rgba(255,255,255,0.1); color: #fff; }
+#teleprompter-root .btn-mini.load { color: var(--accent); background: rgba(0,210,255,0.1); }
+#teleprompter-root .btn-mini.load:hover { background: var(--accent); color: #000; }
+#teleprompter-root .author-tag { background: #333; color: #aaa; padding: 1px 5px; border-radius: 3px; font-size: 10px; margin-left: 5px; }
+
+/* 其他通用样式保持 */
+#teleprompter-root .intro-box { text-align: center; margin-top: 100px; padding: 40px; border: 2px dashed #333; border-radius: 20px; background: rgba(255,255,255,0.02); }
+#teleprompter-root .intro-title { font-size: 36px; color: #fff; letter-spacing: 2px; margin-bottom: 10px; }
+#teleprompter-root .intro-steps { display: flex; justify-content: center; gap: 40px; margin-top: 20px; }
+#teleprompter-root .step-item { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #888; font-size: 12px; }
+#teleprompter-root .step-icon { width: 32px; height: 32px; border-radius: 50%; background: #222; border: 1px solid #444; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: bold; }
+#teleprompter-root input[type="text"], #teleprompter-root textarea { width: 100%; background: #0f1014; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 6px; margin-top: 5px; margin-bottom: 15px; font-size: 13px; box-sizing: border-box; }
+#teleprompter-root input:focus, #teleprompter-root textarea:focus { border-color: var(--accent); outline: none; }
+#teleprompter-root .btn-primary { background: var(--accent); color: #000; padding: 8px 20px; border-radius: 6px; font-weight: bold; font-size: 13px; }
+#teleprompter-root .btn-secondary { background: transparent; border: 1px solid #444; color: #ccc; padding: 8px 20px; border-radius: 6px; font-size: 13px; }
+#teleprompter-root .btn-secondary:hover { border-color: #666; color: #fff; }
+#teleprompter-root .node-card { background: var(--bg-light); border-radius: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid transparent; border-left: 3px solid transparent; cursor: pointer; transition: all 0.2s; }
+#teleprompter-root .node-card.active { border-left-color: var(--accent); background: rgba(0,210,255,0.1); border-color: rgba(0,210,255,0.2); }
+#teleprompter-root .board-display { flex: 1; margin: 10px; background: #111; border: 1px solid #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 18px; font-weight: bold; text-align: center; padding: 20px; }
+#teleprompter-root .board-display img { max-width: 100%; max-height: 100%; object-fit: contain; }
+#teleprompter-root .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+#teleprompter-root .custom-scrollbar::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
