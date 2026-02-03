@@ -63,6 +63,7 @@
     <script src="resource-hub.js"></script>
     <script src="skill-wall.js"></script>
     <script src="teleprompter.js"></script> 
+    <script src="sop-handler.js"></script>
     
 </head>
 <body class="h-screen w-screen flex font-sans selection:bg-cyan-500/30">
@@ -99,6 +100,11 @@
                 <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">创意树洞</div>
             </button>
 
+            <button onclick="switchTab('sop')" id="btn-sop" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-purple-400 hover:bg-white/5 transition-all hidden">
+                <i class="fa-solid fa-clipboard-check text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">SOP 中心</div>
+            </button>
+            
             <div class="h-px w-8 bg-white/5 mx-auto my-1"></div>
 
             <button onclick="switchTab('admin')" id="btn-admin" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-purple-900 hover:text-purple-400 hover:bg-purple-900/10 transition-all hidden">
@@ -193,6 +199,8 @@
             toggle('btn-skills', true);
             toggle('btn-ideas', hasPerm('ideas'));
             toggle('btn-admin', hasPerm('admin'));
+            // 🔥🔥 新增：全员可见 SOP 按钮
+            toggle('btn-sop', true);
         }
 
         function updateSidebarAvatar() {
@@ -216,6 +224,7 @@
                 btn.classList.remove('active', 'text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-indigo-400', 'text-amber-400', 'bg-white/10', 'bg-purple-900/10', 'border-cyan-500');
                 if(btn.id !== 'btn-profile') btn.classList.add('text-gray-500');
                 if(btn.id === 'btn-profile') btn.classList.add('border-transparent');
+               
             });
 
             // 设置高亮
@@ -223,11 +232,12 @@
             if (btn) {
                 btn.classList.remove('text-gray-500');
                 btn.classList.add('active'); // 触发CSS active样式
-                
+                 if (tabName === 'sop') btn.classList.add('text-purple-400');
                 // 特定颜色覆盖
                 if (tabName === 'admin') btn.classList.add('text-purple-400', 'bg-purple-900/10');
                 else if (tabName === 'teleprompter') btn.classList.add('text-cyan-400');
                 else btn.classList.add('text-cyan-400');
+                
             }
 
             // 挂载组件
@@ -242,6 +252,7 @@
             else if (tabName === 'skills') TargetComponent = (typeof SkillWallComponent !== 'undefined') ? SkillWallComponent : null;
             else if (tabName === 'admin') TargetComponent = (typeof AdminSystemComponent !== 'undefined') ? AdminSystemComponent : null;
             else if (tabName === 'profile') TargetComponent = (typeof UserProfileComponent !== 'undefined') ? UserProfileComponent : null;
+            else if (tabName === 'sop') TargetComponent = (typeof SOPHandlerComponent !== 'undefined') ? SOPHandlerComponent : null;
             else if (tabName === 'ideas') TargetComponent = (typeof IdeaHubComponent !== 'undefined') ? IdeaHubComponent : null;
 
             if (TargetComponent) {
