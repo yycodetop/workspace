@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="/libs/katex.min.css">
     <script src="/libs/katex.min.js"></script>
     <script src="/libs/pdf.min.js"></script>
+    <script src="/libs/chart.js"></script>
     
     <script>
         // 设置 PDF.js worker 的本地路径
@@ -23,17 +24,6 @@
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/libs/pdf.worker.min.js';
         }
     </script>
-    <!-- <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
-    
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> -->
     
     <style>
         /* 深色滚动条美化 */
@@ -57,6 +47,7 @@
 
     <script src="login.js"></script>    
     <script src="todo-list.js"></script>
+    <script src="work-log.js"></script>
     <script src="idea-hub.js"></script>
     <script src="admin-system.js"></script>
     <script src="user-profile.js"></script>
@@ -64,6 +55,8 @@
     <script src="skill-wall.js"></script>
     <script src="teleprompter.js"></script> 
     <script src="sop-handler.js"></script>
+    <script src="problem-handler.js"></script>
+  
     
 </head>
 <body class="h-screen w-screen flex font-sans selection:bg-cyan-500/30">
@@ -78,6 +71,11 @@
             <button onclick="switchTab('tasks')" id="btn-tasks" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-cyan-400 hover:bg-white/5 transition-all">
                 <i class="fa-solid fa-satellite-dish text-lg transition-transform group-hover:scale-110"></i>
                 <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">任务指挥</div>
+            </button>
+
+            <button onclick="switchTab('worklog')" id="btn-worklog" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-green-400 hover:bg-white/5 transition-all">
+                <i class="fa-solid fa-pen-nib text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">工作随记</div>
             </button>
 
             <button onclick="switchTab('teleprompter')" id="btn-teleprompter" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-cyan-400 hover:bg-white/5 transition-all">
@@ -103,6 +101,11 @@
             <button onclick="switchTab('sop')" id="btn-sop" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-purple-400 hover:bg-white/5 transition-all hidden">
                 <i class="fa-solid fa-clipboard-check text-lg transition-transform group-hover:scale-110"></i>
                 <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">SOP 中心</div>
+            </button>
+
+            <button onclick="switchTab('problem')" id="btn-problem" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-blue-400 hover:bg-white/5 transition-all hidden">
+                <i class="fa-solid fa-code text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">题目研发</div>
             </button>
             
             <div class="h-px w-8 bg-white/5 mx-auto my-1"></div>
@@ -199,8 +202,8 @@
             toggle('btn-skills', true);
             toggle('btn-ideas', hasPerm('ideas'));
             toggle('btn-admin', hasPerm('admin'));
-            // 🔥🔥 新增：全员可见 SOP 按钮
-            toggle('btn-sop', true);
+            toggle('btn-sop', true); // SOP 全员可见
+            toggle('btn-problem', true); // 🔥 C++ 题目研发 全员可见
         }
 
         function updateSidebarAvatar() {
@@ -221,10 +224,9 @@
         window.switchTab = function(tabName) {
             // 清理高亮
             document.querySelectorAll('.sidebar-btn').forEach(btn => {
-                btn.classList.remove('active', 'text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-indigo-400', 'text-amber-400', 'bg-white/10', 'bg-purple-900/10', 'border-cyan-500');
+                btn.classList.remove('active', 'text-cyan-400', 'text-purple-400', 'text-pink-400', 'text-indigo-400', 'text-amber-400', 'text-green-400', 'text-blue-400', 'bg-white/10', 'bg-purple-900/10', 'border-cyan-500');
                 if(btn.id !== 'btn-profile') btn.classList.add('text-gray-500');
                 if(btn.id === 'btn-profile') btn.classList.add('border-transparent');
-               
             });
 
             // 设置高亮
@@ -232,14 +234,15 @@
             if (btn) {
                 btn.classList.remove('text-gray-500');
                 btn.classList.add('active'); // 触发CSS active样式
-                 if (tabName === 'sop') btn.classList.add('text-purple-400');
-                // 特定颜色覆盖
-                if (tabName === 'admin') btn.classList.add('text-purple-400', 'bg-purple-900/10');
+                
+                if (tabName === 'sop') btn.classList.add('text-purple-400');
+                else if (tabName === 'problem') btn.classList.add('text-blue-400'); // 🔥
+                else if (tabName === 'worklog') btn.classList.add('text-green-400');
+                else if (tabName === 'admin') btn.classList.add('text-purple-400', 'bg-purple-900/10');
                 else if (tabName === 'teleprompter') btn.classList.add('text-cyan-400');
                 else btn.classList.add('text-cyan-400');
-                
             }
-
+            
             // 挂载组件
             if (currentApp) { currentApp.unmount(); currentApp = null; }
             document.getElementById('app').innerHTML = `<div id="vue-root-${tabName}" class="h-full w-full"></div>`;
@@ -254,6 +257,10 @@
             else if (tabName === 'profile') TargetComponent = (typeof UserProfileComponent !== 'undefined') ? UserProfileComponent : null;
             else if (tabName === 'sop') TargetComponent = (typeof SOPHandlerComponent !== 'undefined') ? SOPHandlerComponent : null;
             else if (tabName === 'ideas') TargetComponent = (typeof IdeaHubComponent !== 'undefined') ? IdeaHubComponent : null;
+            else if (tabName === 'worklog') TargetComponent = (typeof WorkLogComponent !== 'undefined') ? WorkLogComponent : null;
+            
+            // 🔥🔥 挂载 Problem Dev 组件
+            else if (tabName === 'problem') TargetComponent = (typeof ProblemHandlerComponent !== 'undefined') ? ProblemHandlerComponent : null;
 
             if (TargetComponent) {
                 currentApp = createApp(TargetComponent);

@@ -74,7 +74,7 @@ const AdminSystemTemplate = `
                         <div><label class="block text-xs text-gray-500 font-bold uppercase mb-2">标题</label><input v-model="sopForm.title" class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:border-purple-500 outline-none"></div>
                         <div>
                             <label class="block text-xs text-gray-500 font-bold uppercase mb-2">分类</label>
-                            <select v-model="sopForm.category" class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white outline-none"><option value="General">General</option><option value="Dev">Dev</option><option value="Market">Market</option><option value="Teaching">Teaching</option></select>
+                            <select v-model="sopForm.category" class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white outline-none"><option value="C++">C++</option><option value="Scratch">Scratch</option><option value="WeDo">WeDo</option><option value="Arduino">Arduino</option><option value="teach">教学服务</option><option value="operations">市场运营</option></select>
                         </div>
                         <div><label class="block text-xs text-gray-500 font-bold uppercase mb-2">描述</label><textarea v-model="sopForm.desc" rows="3" class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white outline-none"></textarea></div>
                         
