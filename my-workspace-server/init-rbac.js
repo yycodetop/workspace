@@ -1,57 +1,73 @@
 const mongoose = require('mongoose');
-const User = require('./models/User');
 const Role = require('./models/Role');
+require('dotenv').config();
 
-// 👇 请务必确认数据库地址正确
-const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
+// 数据库连接
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/my-workspace', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => console.log('MongoDB Connected for RBAC Init'))
+  .catch(err => console.log(err));
 
-async function initRBAC() {
+// 🔥 定义系统全量权限列表
+// 这里涵盖了您目前所有的业务模块
+const ALL_PERMISSIONS = [
+    { code: 'sys_admin', name: '系统管理', desc: '用户管理、权限分配' },
+    { code: 'tuition', name: '学费管理', desc: '收费、退费、财务分析' },
+    { code: 'sop', name: 'SOP流程', desc: 'SOP模板查看与执行' },
+    { code: 'problem', name: '问题/题库', desc: '问题追踪与解决方案' },
+    { code: 'idea', name: '灵感库', desc: '想法记录与分类' },
+    { code: 'resource', name: '资源库', desc: '文件与脚本管理' },
+    { code: 'task', name: '任务管理', desc: '日常Todo与任务分配' },
+    { code: 'teleprompter', name: '提词器', desc: '视频录制提词工具' },
+    { code: 'worklog', name: '工作日志', desc: '工时与日志记录' }
+];
+
+const initRBAC = async () => {
     try {
-        console.log("🔌 连接数据库...");
-        await mongoose.connect(DB_URI);
-        console.log("✅ 数据库已连接");
+        // 1. 初始化或更新 Admin 角色 (拥有所有权限)
+        const adminPerms = ALL_PERMISSIONS.map(p => p.code);
+        await Role.findOneAndUpdate(
+            { name: 'admin' },
+            { 
+                name: 'admin',
+                permissions: adminPerms,
+                description: '超级管理员，拥有所有模块权限'
+            },
+            { upsert: true, new: true }
+        );
+        console.log('✅ Admin role updated with full permissions.');
 
-        // 1. 定义超级管理员权限
-        const superPerms = {
-            'tasks': ['view', 'create', 'edit', 'delete', 'assign', 'view_all', 'edit_all', 'delete_all'],
-            'admin': ['view', 'manage_users', 'manage_roles'],
-            'prompts': ['view']
-        };
+        // 2. 初始化或更新 User 角色 (默认权限，不含财务和系统管理)
+        const userPerms = ['task', 'idea', 'resource', 'problem', 'teleprompter', 'worklog', 'sop'];
+        await Role.findOneAndUpdate(
+            { name: 'user' },
+            { 
+                name: 'user',
+                permissions: userPerms,
+                description: '普通成员，拥有除财务和系统管理外的常规权限'
+            },
+            { upsert: true, new: true }
+        );
+        console.log('✅ User role updated with standard permissions.');
 
-        // 2. 查找或创建角色
-        let superRole = await Role.findOne({ name: '超级管理员' });
-        if (!superRole) {
-            superRole = new Role({ 
-                name: '超级管理员', 
-                description: '系统最高权限，自动初始化生成',
-                permissions: superPerms 
-            });
-            await superRole.save();
-            console.log("✨ '超级管理员' 角色创建成功！");
-        } else {
-            // 更新权限以防 outdated
-            superRole.permissions = superPerms;
-            await superRole.save();
-            console.log("🔄 '超级管理员' 角色权限已更新。");
-        }
+        // 3. (可选) 初始化 财务 角色
+        await Role.findOneAndUpdate(
+            { name: 'finance' },
+            { 
+                name: 'finance',
+                permissions: ['tuition', 'worklog'],
+                description: '财务专员，仅处理学费相关'
+            },
+            { upsert: true, new: true }
+        );
+        console.log('✅ Finance role updated.');
 
-        // 3. 赋予 admin 用户
-        const adminUser = await User.findOne({ username: 'admin' });
-        if (adminUser) {
-            // 覆盖 roles 数组
-            adminUser.roles = [superRole._id];
-            adminUser.isActive = true; // 确保激活
-            await adminUser.save();
-            console.log(`👑 用户 [admin] 已升级为超级管理员！`);
-        } else {
-            console.log("⚠️ 未找到 admin 用户，请先注册一个名为 admin 的账号。");
-        }
-
-        process.exit();
-    } catch (err) {
-        console.error("❌ 发生错误:", err);
-        process.exit(1);
+    } catch (error) {
+        console.error('RBAC Init Error:', error);
+    } finally {
+        mongoose.disconnect();
     }
-}
+};
 
 initRBAC();

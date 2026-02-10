@@ -3,8 +3,8 @@ const Task = require('./models/Task');
 const User = require('./models/User');
 
 // 👇 确保地址正确
-const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
-
+//const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
+const DB_URI = 'mongodb://127.0.0.1:27017/test';
 async function fixData() {
     try {
         console.log("🔌 连接数据库...");

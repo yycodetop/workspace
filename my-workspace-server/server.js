@@ -9,7 +9,8 @@ app.use(cors());
 app.use(express.json());
 
 // 数据库连接
-const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
+// const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
+const DB_URI = 'mongodb://127.0.0.1:27017/test';
 mongoose.connect(DB_URI)
     .then(() => console.log("✅ MongoDB 连接成功"))
     .catch(err => console.error("❌ MongoDB 连接失败:", err));
@@ -30,11 +31,15 @@ app.use('/api/resources', require('./routes/resourceRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/scripts', require('./routes/scriptRoutes'));
 app.use('/api/checkins', require('./routes/checkInRoutes'));
+app.use('/api/work-logs', require('./routes/workLogRoutes'));
+// 在其他 app.use 附近添加
+app.use('/api/tuition', require('./routes/tuitionRoutes'));
 
 // 🔥🔥 核心修复：SOP 路由必须在这里，且在 404 之前！
 app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/sop', require('./routes/sopRoutes')); 
-
+// 🔥 新增：C++ 题目研发路由
+app.use('/api/problems', require('./routes/problemRoutes')); // 👈 Add this line
 // 静态资源托管
 app.use(express.static(clientPath));
 app.use('/uploads', express.static(uploadPath));

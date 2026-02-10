@@ -1,19 +1,86 @@
 const express = require('express');
+const mongoose = require('mongoose'); // 确保引入 mongoose
 const router = express.Router();
-let SOPTemplate, SOPTask, Role, Task, User;
+let SOPTemplate, SOPTask, Role, Task, User, SOPCategory;
 
+// --- 动态定义/加载模型 ---
 try {
     SOPTemplate = require('../models/SOPTemplate');
     SOPTask = require('../models/SOPTask');
     Role = require('../models/Role');
     Task = require('../models/Task'); 
     User = require('../models/User'); 
-} catch (e) { console.error("❌ 模型加载失败:", e); }
+    
+    // 🔥 定义 SOPCategory 模型 (如果文件中不存在则动态定义)
+    if (mongoose.models.SOPCategory) {
+        SOPCategory = mongoose.model('SOPCategory');
+    } else {
+        const categorySchema = new mongoose.Schema({
+            name: { type: String, required: true, unique: true },
+            createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            createdAt: { type: Date, default: Date.now }
+        });
+        SOPCategory = mongoose.model('SOPCategory', categorySchema);
+    }
+
+} catch (e) { console.error("❌ 模型加载/定义失败:", e); }
 
 const auth = require('../middleware/auth');
 const getUid = (req) => req.user?.id || req.userId;
 
+// 辅助：检查管理员权限
+const checkAdmin = async (req) => {
+    const uid = getUid(req);
+    const user = await User.findById(uid).populate('roles');
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    if (user.roles && user.roles.some(r => (r.name||r).toLowerCase().includes('admin'))) return true;
+    return false;
+};
+
 router.use(auth);
+
+// === 🔥 0. 分类管理 API (新增) ===
+
+// 获取所有分类
+router.get('/categories', async (req, res) => {
+    try {
+        const cats = await SOPCategory.find().sort({ createdAt: 1 });
+        res.json(cats);
+    } catch (e) { res.status(500).json(e); }
+});
+
+// 新增分类 (Admin only)
+router.post('/categories', async (req, res) => {
+    try {
+        if (!(await checkAdmin(req))) return res.status(403).json({ message: '无权操作' });
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ message: '分类名称不能为空' });
+        const newCat = new SOPCategory({ name, createdBy: getUid(req) });
+        await newCat.save();
+        res.json(newCat);
+    } catch (e) { res.status(400).json({ message: e.code === 11000 ? '分类已存在' : e.message }); }
+});
+
+// 修改分类 (Admin only)
+router.put('/categories/:id', async (req, res) => {
+    try {
+        if (!(await checkAdmin(req))) return res.status(403).json({ message: '无权操作' });
+        const { name } = req.body;
+        const updated = await SOPCategory.findByIdAndUpdate(req.params.id, { name }, { new: true });
+        res.json(updated);
+    } catch (e) { res.status(500).json(e); }
+});
+
+// 删除分类 (Admin only)
+router.delete('/categories/:id', async (req, res) => {
+    try {
+        if (!(await checkAdmin(req))) return res.status(403).json({ message: '无权操作' });
+        await SOPCategory.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Deleted' });
+    } catch (e) { res.status(500).json(e); }
+});
+
 
 // === 1. 模版管理 ===
 router.get('/templates', async (req, res) => {
@@ -97,7 +164,7 @@ router.post('/tasks', async (req, res) => {
     } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// 🔥🔥🔥 任务详情获取 (严格鉴权 + 安全访问)
+// 任务详情获取 (严格鉴权)
 router.get('/tasks/:id', async (req, res) => {
     try {
         const task = await SOPTask.findById(req.params.id)
@@ -108,8 +175,6 @@ router.get('/tasks/:id', async (req, res) => {
         if (!task) return res.status(404).json({ message: '任务不存在' });
 
         const currentUidStr = String(getUid(req));
-        
-        // 安全访问：如果 userId 被删除了，populate 可能是 null，加 ?. 防止报错
         const ownerIdStr = task.userId ? String(task.userId._id) : 'unknown';
         const reviewerIdStr = task.reviewerId ? String(task.reviewerId._id) : null;
 
@@ -118,18 +183,7 @@ router.get('/tasks/:id', async (req, res) => {
         
         let isAdmin = false;
         if (!isOwner && !isReviewer) {
-            try {
-                const user = await User.findById(currentUidStr).populate('roles');
-                if (user) {
-                    if (user.isAdmin === true) isAdmin = true;
-                    if (!isAdmin && user.roles && Array.isArray(user.roles)) {
-                        isAdmin = user.roles.some(r => {
-                            const rName = (r.name || r).toLowerCase();
-                            return rName.includes('admin') || rName.includes('manager');
-                        });
-                    }
-                }
-            } catch (roleErr) { console.warn("Admin check failed:", roleErr); }
+            isAdmin = await checkAdmin(req);
         }
 
         if (!isOwner && !isReviewer && !isAdmin) {
@@ -138,9 +192,7 @@ router.get('/tasks/:id', async (req, res) => {
 
         return res.json(task);
 
-    } catch (err) { 
-        res.status(500).json({ message: err.message }); 
-    }
+    } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
 router.delete('/tasks/:id', async (req, res) => { try { await SOPTask.findByIdAndDelete(req.params.id); res.json({ msg: 'Deleted' }); } catch (e) { res.status(500).json(e); } });

@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const path = require('path');
 
 // 1. 数据库配置
-const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
-
+//const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
+const DB_URI = 'mongodb://127.0.0.1:27017/test';
 async function runDiagnostics() {
     console.log("🔍 开始 SOP 系统诊断...");
 

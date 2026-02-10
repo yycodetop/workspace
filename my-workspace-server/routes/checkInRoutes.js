@@ -1,122 +1,111 @@
 const express = require('express');
 const router = express.Router();
-const CheckIn = require('../models/CheckIn');
-const CheckInType = require('../models/CheckInType');
+const CheckIn = require('../models/CheckIn'); // 确保你有 CheckIn 模型
+const CheckInType = require('../models/CheckInType'); // 确保你有 CheckInType 模型
 const auth = require('../middleware/auth');
-const User = require('../models/User');
 
-// --- 辅助：检查是否为管理员 ---
-const isAdmin = async (userId) => {
-    const user = await User.findById(userId);
-    return user && user.username === 'admin';
-};
+router.use(auth);
 
-// ========================
-// 1. 打卡记录管理 (Logs)
-// ========================
+// ==========================================
+// 1. 打卡记录 (CheckIns)
+// ==========================================
 
-// 获取列表
+// 获取所有打卡 (倒序)
 router.get('/', async (req, res) => {
     try {
-        const logs = await CheckIn.find()
-            .populate('userId', 'name avatar')
+        const list = await CheckIn.find()
+            .populate('userId', 'name avatar') // 关联用户信息
             .sort({ createdAt: -1 })
-            .limit(100);
-        res.json(logs);
-    } catch (err) { res.status(500).json({ message: err.message }); }
+            .limit(100); // 限制返回数量，防止过多
+        res.json(list);
+    } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-// 发布
-router.post('/', auth, async (req, res) => {
+// 新增打卡
+router.post('/', async (req, res) => {
     try {
-        const newLog = new CheckIn({ userId: req.user.id, ...req.body });
-        await newLog.save();
-        await newLog.populate('userId', 'name avatar');
-        res.json(newLog);
-    } catch (err) { res.status(400).json({ message: err.message }); }
+        const { content, type } = req.body;
+        const newCheckIn = new CheckIn({
+            userId: req.user.id,
+            content,
+            type
+        });
+        await newCheckIn.save();
+        // 填充用户信息后返回，方便前端直接显示头像
+        await newCheckIn.populate('userId', 'name avatar');
+        res.json(newCheckIn);
+    } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-// 修改 (仅作者或管理员)
-router.put('/:id', auth, async (req, res) => {
+// 删除打卡
+router.delete('/:id', async (req, res) => {
     try {
-        const log = await CheckIn.findById(req.params.id);
-        if (!log) return res.status(404).json({ message: 'Not found' });
+        const checkIn = await CheckIn.findById(req.params.id);
+        if (!checkIn) return res.status(404).json({ message: '记录不存在' });
 
-        const admin = await isAdmin(req.user.id);
-        if (log.userId.toString() !== req.user.id && !admin) {
-            return res.status(403).json({ message: '无权修改他人记录' });
+        // 权限：只能删自己的
+        if (checkIn.userId.toString() !== req.user.id) {
+            return res.status(403).json({ message: '无权删除' });
         }
 
-        log.content = req.body.content || log.content;
-        log.type = req.body.type || log.type;
-        await log.save();
-        await log.populate('userId', 'name avatar');
-        res.json(log);
-    } catch (err) { res.status(500).json({ message: err.message }); }
-});
-
-// 删除 (仅作者或管理员)
-router.delete('/:id', auth, async (req, res) => {
-    try {
-        const log = await CheckIn.findById(req.params.id);
-        if (!log) return res.status(404).json({ message: 'Not found' });
-
-        const admin = await isAdmin(req.user.id);
-        if (log.userId.toString() !== req.user.id && !admin) {
-            return res.status(403).json({ message: '无权删除他人记录' });
-        }
-
-        await log.deleteOne();
+        await CheckIn.findByIdAndDelete(req.params.id);
         res.json({ message: 'Deleted' });
-    } catch (err) { res.status(500).json({ message: err.message }); }
+    } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-// ========================
-// 2. 打卡类型配置 (Types)
-// ========================
+// 修改打卡
+router.put('/:id', async (req, res) => {
+    try {
+        const { content, type } = req.body;
+        const checkIn = await CheckIn.findById(req.params.id);
+        if (checkIn.userId.toString() !== req.user.id) return res.status(403).json({ message: '无权修改' });
 
-// 获取所有类型 (公开)
+        if (content) checkIn.content = content;
+        if (type) checkIn.type = type;
+        await checkIn.save();
+        
+        // 重新 populate 保持数据结构一致
+        await checkIn.populate('userId', 'name avatar');
+        res.json(checkIn);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// ==========================================
+// 2. 打卡类型配置 (CheckInTypes)
+// ==========================================
+
+// 获取类型
 router.get('/config/types', async (req, res) => {
     try {
-        const types = await CheckInType.find().sort({ order: 1 });
+        const types = await CheckInType.find().sort({ createdAt: 1 });
         res.json(types);
-    } catch (err) { res.status(500).json({ message: err.message }); }
+    } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-// 初始化/添加类型 (仅管理员)
-router.post('/config/types', auth, async (req, res) => {
-    if (!(await isAdmin(req.user.id))) return res.status(403).json({ message: 'Admin only' });
+// 新增类型
+router.post('/config/types', async (req, res) => {
     try {
-        const newType = new CheckInType(req.body);
+        const { label, icon, styleClass } = req.body;
+        const newType = new CheckInType({ label, icon, styleClass });
         await newType.save();
         res.json(newType);
-    } catch (err) { res.status(400).json({ message: err.message }); }
+    } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-// 删除类型 (仅管理员)
-router.delete('/config/types/:id', auth, async (req, res) => {
-    if (!(await isAdmin(req.user.id))) return res.status(403).json({ message: 'Admin only' });
+// 修改类型
+router.put('/config/types/:id', async (req, res) => {
+    try {
+        const updated = await CheckInType.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(updated);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+// 删除类型
+router.delete('/config/types/:id', async (req, res) => {
     try {
         await CheckInType.findByIdAndDelete(req.params.id);
         res.json({ message: 'Deleted' });
-    } catch (err) { res.status(500).json({ message: err.message }); }
-});
-// ... (保留之前的代码)
-
-// 修改类型 (仅管理员) - 🔥 新增接口
-router.put('/config/types/:id', auth, async (req, res) => {
-    if (!(await isAdmin(req.user.id))) return res.status(403).json({ message: 'Admin only' });
-    try {
-        const { label, icon, styleClass, order } = req.body;
-        const updatedType = await CheckInType.findByIdAndUpdate(
-            req.params.id,
-            { label, icon, styleClass, order },
-            { new: true } // 返回更新后的对象
-        );
-        res.json(updatedType);
-    } catch (err) { res.status(500).json({ message: err.message }); }
+    } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
-// 删除类型 (仅管理员)
-// ... (保留之前的代码)
 module.exports = router;

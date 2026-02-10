@@ -3,8 +3,8 @@ const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 
 // 👇 配置你的数据库地址
-const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
-
+//const DB_URI = 'mongodb+srv://zhoujy_codeTop_user:ZOmojDYBWHLp3QR5@cluster0.tthdthf.mongodb.net/?appName=Cluster0';
+const DB_URI = 'mongodb://127.0.0.1:27017/test';
 // 👇 配置你要创建的账号密码
 const ADMIN_USER = 'admin';
 const ADMIN_PASS = '123456'; // 建议改复杂点
