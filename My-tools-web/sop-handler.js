@@ -1,8 +1,7 @@
 /**
- * SOP Handler - V16.0 (Nav Logic Fix)
- * 1. 修复导航逻辑：点击头部 Tab 时，强制关闭当前打开的任务详情页 (Overlay)。
- * 2. 封装 switchView 函数：统一处理视图切换 + 状态重置 + 数据刷新。
- * 3. 保持：所有鉴权、只读逻辑、头像显示等功能。
+ * SOP Handler - V21.0 (Fix Preview Modal)
+ * 1. 修复：补全了缺失的“预览弹窗”UI代码，现在点击预览可以看到详情了。
+ * 2. 保持：卡片样式、开始按钮逻辑、分类管理、权限控制等所有功能完全不变。
  */
 const SOPHandlerTemplate = `
 <div class="h-full flex flex-col bg-[#0b0c15] text-gray-100 font-sans selection:bg-purple-500/30 relative">
@@ -20,6 +19,9 @@ const SOPHandlerTemplate = `
                     <span v-if="reviewTasks.length > 0" class="bg-red-500 text-white text-[10px] px-1.5 rounded-full ml-1">{{ reviewTasks.length }}</span>
                 </button>
                 <button @click="switchView('all_tasks')" class="px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 text-gray-400 hover:text-white border-l border-white/10 ml-2 pl-4"><i class="fa-solid fa-users-viewfinder"></i> 全员任务</button>
+                <button v-if="isAdmin" @click="switchView('admin_lib')" :class="['px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ml-2', viewMode==='admin_lib' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-400 hover:text-white border border-indigo-500/30 bg-indigo-500/10']">
+                    <i class="fa-solid fa-swatchbook"></i> SOP 标准库
+                </button>
             </div>
         </div>
         <button @click="refresh" class="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-all"><i class="fa-solid fa-rotate"></i></button>
@@ -29,31 +31,58 @@ const SOPHandlerTemplate = `
         
         <div v-if="viewMode === 'library'" class="h-full overflow-y-auto p-8 custom-scrollbar animate-fade-in-up">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <div v-for="tpl in templates" :key="tpl._id" class="bg-[#13151f] border border-white/10 rounded-xl p-6 hover:border-purple-500/50 transition-all flex flex-col h-full hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-900/20">
+                <div v-for="tpl in templates" :key="tpl._id" @click="openPreview(tpl)" class="bg-[#13151f] border border-white/10 rounded-xl p-6 hover:border-purple-500/50 transition-all flex flex-col h-full hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-900/20 cursor-pointer group">
                     <div class="flex justify-between items-start mb-4">
                         <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-900 to-indigo-900 flex items-center justify-center text-white font-bold text-xl shadow-lg border border-white/10">{{ tpl.title.charAt(0) }}</div>
                         <span class="px-2 py-1 rounded text-[10px] bg-white/5 text-gray-400 uppercase font-bold border border-white/5">{{ tpl.category }}</span>
                     </div>
                     <h3 class="text-lg font-bold text-white mb-2">{{ tpl.title }}</h3>
                     <p class="text-xs text-gray-500 mb-6 line-clamp-3 flex-1">{{ tpl.desc || '暂无描述' }}</p>
+                    
                     <div v-if="tpl.attachments?.length" class="mb-4 space-y-1 border-t border-white/5 pt-2">
                         <div v-for="f in tpl.attachments" :key="f.url" class="text-[10px] flex items-center gap-2 text-gray-400">
-                            <i class="fa-solid fa-paperclip text-blue-500"></i> <a :href="getDownloadLink(f)" target="_blank" class="hover:text-blue-400 underline truncate">{{ f.name }}</a>
+                            <i class="fa-solid fa-paperclip text-blue-500"></i> <a :href="getDownloadLink(f)" @click.stop target="_blank" class="hover:text-blue-400 underline truncate">{{ f.name }}</a>
                         </div>
                     </div>
+
                     <div class="flex gap-2">
                         <button @click.stop="openPreview(tpl)" class="flex-1 bg-white/5 hover:bg-white/10 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-white/10">预览</button>
-                        <button @click="openStartModal(tpl)" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-play"></i> 开始</button>
+                        <button @click.stop="openStartModal(tpl)" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-play"></i> 开始</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="viewMode === 'admin_lib'" class="h-full overflow-y-auto p-8 custom-scrollbar animate-fade-in-up">
+            <div class="flex items-center gap-3 mb-8 bg-[#13151f] p-4 rounded-xl border border-white/10">
+                <div class="text-sm font-bold text-gray-400 mr-2">管理操作：</div>
+                <button @click="showCategoryModal = true" class="px-4 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/50 text-indigo-300 text-xs font-bold hover:bg-indigo-500 hover:text-white transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-tags"></i> 分类维护
+                </button>
+                <button @click="customAlert('新建SOP功能开发中...')" class="px-4 py-2 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-500 transition-all flex items-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-plus"></i> 新建 SOP
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div v-for="tpl in templates" :key="tpl._id" class="bg-[#13151f] border border-indigo-500/20 rounded-xl p-6 relative group hover:bg-white/[0.02]">
+                    <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button class="w-7 h-7 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center text-xs"><i class="fa-solid fa-pen"></i></button>
+                        <button class="w-7 h-7 rounded bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-900 to-purple-900 flex items-center justify-center text-white font-bold text-xl shadow-lg border border-white/10">{{ tpl.title.charAt(0) }}</div>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">{{ tpl.title }}</h3>
+                    <div class="flex gap-2 mt-4">
+                        <span class="px-2 py-1 rounded text-[10px] bg-white/5 text-gray-400 border border-white/5">{{ tpl.category }}</span>
+                        <span class="px-2 py-1 rounded text-[10px] bg-white/5 text-gray-500 border border-white/5">v{{ tpl.version }}</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div v-if="viewMode === 'my_tasks'" class="h-full overflow-y-auto p-8 custom-scrollbar animate-fade-in-up">
-             <div v-if="myTasks.length === 0" class="flex flex-col items-center justify-center h-full text-gray-500">
-                <i class="fa-regular fa-folder-open text-4xl mb-4 opacity-50"></i>
-                <p>暂无任务</p>
-            </div>
+             <div v-if="myTasks.length === 0" class="flex flex-col items-center justify-center h-full text-gray-500"><i class="fa-regular fa-folder-open text-4xl mb-4 opacity-50"></i><p>暂无任务</p></div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                 <div v-for="task in myTasks" :key="task._id" @click="openTaskDetail(task._id)" class="bg-[#13151f] border border-white/10 rounded-xl p-5 hover:border-purple-500/50 hover:bg-white/[0.02] cursor-pointer transition-all group relative flex flex-col shadow-lg">
                     <div class="flex justify-between items-center mb-4">
@@ -62,14 +91,10 @@ const SOPHandlerTemplate = `
                     </div>
                     <h3 class="text-lg font-bold text-white mb-1 group-hover:text-purple-400 transition-colors truncate">{{ task.snapshot?.title || '未命名' }}</h3>
                     <div class="text-xs text-gray-500 mb-4">ID: #{{ task._id.slice(-6) }}</div>
-                    
                     <div v-if="task.status === 'rejected'" class="mb-4 bg-red-500/10 border border-red-500/40 rounded-lg p-3 animate-pulse">
-                        <div class="text-[10px] text-red-400 font-bold uppercase mb-1 flex items-center gap-1">
-                            <i class="fa-solid fa-circle-exclamation"></i> 驳回原因
-                        </div>
+                        <div class="text-[10px] text-red-400 font-bold uppercase mb-1 flex items-center gap-1"><i class="fa-solid fa-circle-exclamation"></i> 驳回原因</div>
                         <div class="text-xs text-red-200 line-clamp-3 font-medium">{{ getLatestRejectReason(task) }}</div>
                     </div>
-
                     <div class="space-y-3 flex-1">
                         <div class="flex items-center gap-3 text-xs text-gray-400 bg-black/20 p-2.5 rounded border border-white/5">
                             <div class="w-6 h-6 rounded-full bg-purple-900/50 flex items-center justify-center text-purple-300 font-bold border border-purple-500/20">{{ task.reviewerId?.name?.charAt(0) || '?' }}</div>
@@ -80,7 +105,6 @@ const SOPHandlerTemplate = `
                             <div v-if="task.relatedTaskId" class="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden"><div class="bg-blue-500 h-full rounded-full transition-all duration-500" :style="{width: (task.relatedTaskId.progress || 0) + '%'}"></div></div>
                         </div>
                     </div>
-                    
                     <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-xs">
                         <div class="flex items-center gap-2 text-gray-500"><i class="fa-solid fa-list-check"></i> 已完成步骤</div>
                         <div class="flex items-center gap-1"><span class="text-emerald-400 font-bold text-base">{{ getCompletedCount(task) }}</span><span class="text-gray-600">/</span><span class="text-gray-400">{{ (task.snapshot?.steps || []).length }}</span></div>
@@ -93,17 +117,8 @@ const SOPHandlerTemplate = `
             <div class="max-w-5xl mx-auto space-y-4">
                 <div v-for="task in allTasks" :key="task._id" @click="openTaskDetail(task._id)" class="bg-[#13151f] border border-white/10 rounded-xl p-4 hover:bg-white/5 cursor-pointer flex items-center justify-between group">
                     <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 rounded-full bg-gray-700 overflow-hidden border border-white/20 flex-shrink-0">
-                            <img v-if="task.userId?.avatar" :src="task.userId.avatar" class="w-full h-full object-cover">
-                            <div v-else class="w-full h-full flex items-center justify-center text-xs font-bold text-white">{{ task.userId?.name?.charAt(0) || '?' }}</div>
-                        </div>
-                        <div>
-                            <div class="text-sm font-bold text-white flex items-center gap-2">
-                                {{ task.snapshot?.title }}
-                                <span v-if="task.status === 'completed'" class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 rounded"><i class="fa-solid fa-check mr-1"></i>已完成</span>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">执行: {{ task.userId?.name }} | 关联: {{ task.relatedTaskId?.title || '-' }}</div>
-                        </div>
+                        <div class="w-10 h-10 rounded-full bg-gray-700 overflow-hidden border border-white/20 flex-shrink-0"><img v-if="task.userId?.avatar" :src="task.userId.avatar" class="w-full h-full object-cover"><div v-else class="w-full h-full flex items-center justify-center text-xs font-bold text-white">{{ task.userId?.name?.charAt(0) || '?' }}</div></div>
+                        <div><div class="text-sm font-bold text-white flex items-center gap-2">{{ task.snapshot?.title }}<span v-if="task.status === 'completed'" class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 rounded"><i class="fa-solid fa-check mr-1"></i>已完成</span></div><div class="text-xs text-gray-500 mt-1">执行: {{ task.userId?.name }} | 关联: {{ task.relatedTaskId?.title || '-' }}</div></div>
                     </div>
                     <span :class="['px-3 py-1 rounded-full text-xs font-bold border', getStatusBadge(task.status)]">{{ getStatusLabel(task.status) }}</span>
                 </div>
@@ -113,27 +128,89 @@ const SOPHandlerTemplate = `
         <div v-if="viewMode === 'review'" class="h-full overflow-y-auto p-8 custom-scrollbar animate-fade-in-up">
              <div v-if="reviewTasks.length === 0" class="flex flex-col items-center justify-center h-full text-gray-500"><i class="fa-solid fa-mug-hot text-4xl mb-4 opacity-50"></i><p>暂无待审核任务</p></div>
              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-                <div v-for="task in reviewTasks" :key="task._id" 
-                     @click="openTaskDetail(task._id)" 
-                     class="bg-[#13151f] border border-emerald-500/30 rounded-xl p-5 hover:bg-white/[0.02] cursor-pointer transition-all group relative flex flex-col shadow-lg shadow-emerald-900/10">
-                    
+                <div v-for="task in reviewTasks" :key="task._id" @click="openTaskDetail(task._id)" class="bg-[#13151f] border border-emerald-500/30 rounded-xl p-5 hover:bg-white/[0.02] cursor-pointer transition-all group relative flex flex-col shadow-lg shadow-emerald-900/10">
                     <div class="flex items-center gap-4 mb-4">
-                        <div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden border-2 border-emerald-500/50">
-                            <img v-if="task.userId?.avatar" :src="task.userId.avatar" class="w-full h-full object-cover">
-                            <div v-else class="w-full h-full flex items-center justify-center text-xs font-bold text-white">{{ task.userId?.name?.charAt(0) || '?' }}</div>
-                        </div>
-                        <div>
-                            <h3 class="text-sm font-bold text-white mb-1">{{ task.snapshot?.title }}</h3>
-                            <div class="text-xs text-gray-400">提交人: <span class="text-white">{{ task.userId?.name || '未知' }}</span></div>
-                        </div>
+                        <div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden border-2 border-emerald-500/50"><img v-if="task.userId?.avatar" :src="task.userId.avatar" class="w-full h-full object-cover"><div v-else class="w-full h-full flex items-center justify-center text-xs font-bold text-white">{{ task.userId?.name?.charAt(0) || '?' }}</div></div>
+                        <div><h3 class="text-sm font-bold text-white mb-1">{{ task.snapshot?.title }}</h3><div class="text-xs text-gray-400">提交人: <span class="text-white">{{ task.userId?.name || '未知' }}</span></div></div>
                     </div>
-
                     <div class="bg-black/30 rounded-lg p-3 text-xs border border-white/5 space-y-2 mb-4">
                         <div class="flex justify-between"><span class="text-gray-500">提交时间</span><span class="text-gray-300">{{ new Date(task.updatedAt).toLocaleDateString() }}</span></div>
                         <div class="flex justify-between"><span class="text-gray-500">关联任务</span><span class="text-gray-300 truncate max-w-[120px]">{{ task.relatedTaskId?.title || '-' }}</span></div>
                     </div>
-
                     <button class="w-full bg-emerald-600/10 text-emerald-400 border border-emerald-500/30 py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all">进入审核</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="previewTemplate" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div class="bg-[#1a1c26] w-full max-w-2xl max-h-[85vh] rounded-2xl border border-white/10 p-0 shadow-2xl flex flex-col overflow-hidden relative">
+                <div class="p-6 border-b border-white/10 flex justify-between items-start bg-[#13151f]">
+                    <div>
+                        <div class="text-xs font-bold text-purple-500 uppercase mb-1 flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded bg-purple-500/20 border border-purple-500/30">{{ previewTemplate.category }}</span>
+                            <span class="text-gray-500">v{{ previewTemplate.version }}</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white">{{ previewTemplate.title }}</h3>
+                    </div>
+                    <button @click="previewTemplate = null" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                    <div class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap bg-white/5 p-4 rounded-lg border border-white/5">{{ previewTemplate.desc || '此 SOP 暂无详细描述' }}</div>
+                    
+                    <div v-if="previewTemplate.attachments?.length" class="bg-blue-900/10 rounded-lg p-4 border border-blue-500/20">
+                        <h4 class="text-xs font-bold text-blue-400 uppercase mb-3 flex items-center gap-2"><i class="fa-solid fa-folder-open"></i> 参考文档</h4>
+                        <div class="space-y-2">
+                            <a v-for="f in previewTemplate.attachments" :href="getDownloadLink(f)" target="_blank" class="flex items-center gap-2 text-sm text-gray-300 hover:text-white group">
+                                <i class="fa-solid fa-file-arrow-down text-gray-500 group-hover:text-blue-400"></i> {{ f.name }}
+                            </a>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-4 flex items-center gap-2"><i class="fa-solid fa-list-ol"></i> 步骤概览</h4>
+                        <div class="space-y-3 relative">
+                            <div class="absolute left-[15px] top-4 bottom-4 w-0.5 bg-white/5 -z-10"></div>
+                            <div v-for="(step, idx) in previewTemplate.steps" :key="idx" class="flex gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors group">
+                                <div class="w-8 h-8 rounded-full bg-black border border-white/10 flex items-center justify-center text-xs font-bold text-gray-500 group-hover:border-purple-500/50 group-hover:text-purple-400 transition-colors z-10">{{ idx + 1 }}</div>
+                                <div>
+                                    <div class="text-sm font-bold text-white mb-1">{{ step.title }}</div>
+                                    <div class="text-xs text-gray-500">{{ step.desc || '无详细指引' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-white/10 bg-[#13151f] flex justify-end gap-3">
+                    <button @click="previewTemplate = null" class="px-6 py-2 rounded-lg border border-white/10 text-gray-400 hover:text-white text-sm font-bold transition-all">关闭</button>
+                    <button @click="openStartModal(previewTemplate); previewTemplate = null" class="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold shadow-lg transition-all flex items-center gap-2"><i class="fa-solid fa-play"></i> 立即开始</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showCategoryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div class="bg-[#1a1c26] w-full max-w-md rounded-2xl border border-white/10 p-6 shadow-xl relative">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-tags text-indigo-500"></i> 分类管理</h3>
+                    <button @click="showCategoryModal=false" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <input v-model="newCategoryName" placeholder="输入新分类名称..." class="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none">
+                    <button @click="addCategory" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-500 whitespace-nowrap"><i class="fa-solid fa-plus"></i> 添加</button>
+                </div>
+                <div class="max-h-[300px] overflow-y-auto custom-scrollbar space-y-2 border-t border-white/5 pt-4">
+                    <div v-for="cat in categories" :key="cat._id" class="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5 group">
+                        <div v-if="editingCatId === cat._id" class="flex-1 flex gap-2 mr-2">
+                            <input v-model="editingCatName" class="w-full bg-black/50 border border-indigo-500/50 rounded px-2 py-1 text-xs text-white outline-none">
+                            <button @click="updateCategory(cat._id)" class="text-emerald-400 hover:text-emerald-300"><i class="fa-solid fa-check"></i></button>
+                            <button @click="cancelEdit" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div v-else class="text-sm text-gray-300 flex-1">{{ cat.name }}</div>
+                        <div v-if="editingCatId !== cat._id" class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button @click="startEdit(cat)" class="text-blue-400 hover:text-blue-300 text-xs"><i class="fa-solid fa-pen"></i></button>
+                            <button @click="deleteCategory(cat._id)" class="text-red-400 hover:text-red-300 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div v-if="categories.length === 0" class="text-center text-gray-500 text-xs py-4">暂无分类</div>
                 </div>
             </div>
         </div>
@@ -144,7 +221,7 @@ const SOPHandlerTemplate = `
                 <h3 class="text-lg font-bold text-white mb-6 relative z-10">开始任务: {{ selectedTemplate?.title }}</h3>
                 <div class="space-y-5 relative z-10">
                     <div>
-                        <label class="block text-xs text-gray-500 font-bold uppercase mb-2">1. 指定审核人员</label>
+                        <label class="block text-xs text-gray-500 font-bold uppercase mb-2">1. 指定审核人员 (预约)</label>
                         <select v-model="selectedReviewerId" class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white text-sm outline-none focus:border-purple-500 transition-colors">
                             <option :value="null">-- 不指定 (或稍后指定) --</option>
                             <option v-for="u in users" :key="u._id" :value="u._id">{{ u.name }}</option>
@@ -160,7 +237,7 @@ const SOPHandlerTemplate = `
                 </div>
                 <div class="flex justify-end gap-3 pt-6 border-t border-white/5 mt-6 relative z-10">
                     <button @click="showStartModal=false" class="text-gray-400 text-sm hover:text-white transition-colors">取消</button>
-                    <button @click="confirmStartTask" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg transition-all">确认开始</button>
+                    <button @click="confirmStartTask" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg transition-all">确认预约/开始</button>
                 </div>
             </div>
         </div>
@@ -212,13 +289,7 @@ const SOPHandlerTemplate = `
                             <div class="text-gray-400 text-sm bg-white/5 p-4 rounded-lg border border-white/5 leading-relaxed">{{ currentStep.desc || '暂无指引' }}</div>
                         </div>
                         <div class="bg-[#13151f] border border-white/10 rounded-xl p-6 shadow-xl relative overflow-hidden">
-                            
-                            <div v-if="shouldReadOnly" class="bg-blue-900/20 border border-blue-500/30 text-blue-400 text-xs px-4 py-2 rounded mb-4 flex items-center">
-                                <i class="fa-solid fa-lock mr-2"></i> 
-                                <span v-if="currentTask.status === 'completed'">此任务已归档，内容仅供查阅。</span>
-                                <span v-else>只读模式：您不是执行人。</span>
-                            </div>
-
+                            <div v-if="shouldReadOnly" class="bg-blue-900/20 border border-blue-500/30 text-blue-400 text-xs px-4 py-2 rounded mb-4 flex items-center"><i class="fa-solid fa-lock mr-2"></i> <span v-if="currentTask.status === 'completed'">此任务已归档，内容仅供查阅。</span><span v-else>只读模式：您不是执行人。</span></div>
                             <div v-if="currentStep.type === 'input'" class="space-y-4">
                                 <label class="text-xs text-gray-500 font-bold uppercase">填写内容</label>
                                 <textarea v-model="activeStepData.content" :disabled="shouldReadOnly" rows="6" class="w-full bg-black/30 border border-white/10 rounded-lg p-4 text-white text-sm focus:border-purple-500 outline-none resize-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"></textarea>
@@ -296,10 +367,17 @@ const SOPHandlerComponent = {
         const viewMode = ref('library'); 
         const templates = ref([]); const myTasks = ref([]); const reviewTasks = ref([]); const allTasks = ref([]); const users = ref([]);
         const myCommandTasks = ref([]); 
+        
+        const showCategoryModal = ref(false);
+        const categories = ref([]);
+        const newCategoryName = ref('');
+        const editingCatId = ref(null);
+        const editingCatName = ref('');
+        const isAdmin = ref(false); 
 
         const currentTask = ref(null); const activeStepIndex = ref(0);
         const showStartModal = ref(false); const selectedTemplate = ref(null); const selectedReviewerId = ref(null); const selectedRelatedTaskId = ref(null);
-        const previewTemplate = ref(null);
+        const previewTemplate = ref(null); // 🔥 修复：确保这个变量被 UI 正确引用
         const activeStepData = reactive({ content: '', attachments: [], status: 'pending' });
         const isUploading = ref(false);
         const showRejectDialog = ref(false); const rejectReason = ref(''); const rejectTarget = ref({ index: null, scope: 'step' }); 
@@ -308,8 +386,17 @@ const SOPHandlerComponent = {
 
         const getH = () => ({ 'Authorization': `Bearer ${localStorage.getItem('authToken')}` });
         const getDownloadLink = (file) => (!file || !file.url) ? '#' : `${API_UPLOAD}/download?url=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name)}`;
-        const isReviewerMode = computed(() => currentTask.value && viewMode.value === 'review');
         
+        const checkIsAdmin = () => {
+            try {
+                const token = localStorage.getItem('authToken');
+                if(!token) return false;
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                return payload.isAdmin === true || (payload.roles && payload.roles.some(r => r.toLowerCase().includes('admin')));
+            } catch(e) { return false; }
+        };
+
+        const isReviewerMode = computed(() => currentTask.value && viewMode.value === 'review');
         const isMyTask = computed(() => {
             if(!currentTask.value) return false;
             return viewMode.value === 'my_tasks' || viewMode.value === 'library';
@@ -341,39 +428,67 @@ const SOPHandlerComponent = {
         const confirmAction = (msg, callback) => { sysModal.type = 'confirm'; sysModal.msg = msg; sysModal.show = true; sysModal.onOk = () => { sysModal.show = false; if(callback) callback(); }; sysModal.onCancel = () => { sysModal.show = false; }; };
 
         const refresh = async () => {
+            isAdmin.value = checkIsAdmin();
             const h = getH();
             try {
-                const [tRes, mRes, rRes, uRes, tcRes] = await Promise.all([
+                const [tRes, mRes, rRes, uRes, tcRes, catRes] = await Promise.all([
                     fetch(`${API_SOP}/templates`, {headers:h}),
                     fetch(`${API_SOP}/tasks/my`, {headers:h}),
                     fetch(`${API_SOP}/tasks/pending-review`, {headers:h}),
                     fetch(API_USERS_WALL, {headers:h}), 
-                    fetch(`${API_TASKS}`, {headers:h})
+                    fetch(`${API_TASKS}`, {headers:h}),
+                    fetch(`${API_SOP}/categories`, {headers:h}) 
                 ]);
                 if(tRes.ok) templates.value = await tRes.json();
                 if(mRes.ok) myTasks.value = await mRes.json();
                 if(rRes.ok) reviewTasks.value = await rRes.json();
                 if(uRes.ok) users.value = await uRes.json();
                 if(tcRes.ok) myCommandTasks.value = await tcRes.json();
+                if(catRes.ok) categories.value = await catRes.json(); 
                 fetch(`${API_SOP}/tasks/all`, {headers:h}).then(r=>{ if(r.ok) r.json().then(d=>allTasks.value=d); });
             } catch(e) {}
         };
 
+        const addCategory = async () => {
+            if(!newCategoryName.value.trim()) return customAlert('请输入名称');
+            try {
+                const res = await fetch(`${API_SOP}/categories`, { method: 'POST', headers: {'Content-Type':'application/json', ...getH()}, body: JSON.stringify({name: newCategoryName.value}) });
+                if(!res.ok) throw new Error((await res.json()).message);
+                newCategoryName.value = ''; refresh();
+            } catch(e) { customAlert(e.message); }
+        };
+        const deleteCategory = async (id) => {
+            confirmAction('确定删除此分类吗？', async () => {
+                await fetch(`${API_SOP}/categories/${id}`, { method: 'DELETE', headers: getH() });
+                refresh();
+            });
+        };
+        const startEdit = (cat) => { editingCatId.value = cat._id; editingCatName.value = cat.name; };
+        const cancelEdit = () => { editingCatId.value = null; };
+        const updateCategory = async (id) => {
+            if(!editingCatName.value.trim()) return;
+            await fetch(`${API_SOP}/categories/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json', ...getH()}, body: JSON.stringify({name: editingCatName.value}) });
+            cancelEdit(); refresh();
+        };
+
         const switchView = (mode) => {
             viewMode.value = mode;
-            currentTask.value = null; // Close detail view
+            currentTask.value = null; 
             refresh();
         };
 
         const openStartModal = (tpl) => { selectedTemplate.value = tpl; selectedReviewerId.value = null; selectedRelatedTaskId.value = null; showStartModal.value = true; };
         const confirmStartTask = async () => {
+            if(!selectedTemplate.value) return customAlert("未选择模板");
             try {
                 const res = await fetch(`${API_SOP}/tasks`, {
                     method: 'POST', headers: {'Content-Type':'application/json', ...getH()},
                     body: JSON.stringify({ templateId: selectedTemplate.value._id, reviewerId: selectedReviewerId.value, relatedTaskId: selectedRelatedTaskId.value })
                 });
                 if(!res.ok) throw new Error((await res.json()).message);
-                showStartModal.value = false; viewMode.value = 'my_tasks'; refresh();
+                showStartModal.value = false;
+                customAlert('任务创建成功！已跳转到“我的任务”');
+                switchView('my_tasks'); // 🔥 创建后自动跳转
             } catch(e) { customAlert(e.message); }
         };
 
@@ -452,7 +567,7 @@ const SOPHandlerComponent = {
         
         const getStepStatusClass = (idx) => { return 'bg-transparent border-transparent'; };
 
-        onMounted(refresh);
+        onMounted(refresh); 
 
         return {
             viewMode, templates, myTasks, reviewTasks, allTasks, users, myCommandTasks, currentTask, activeStepIndex, activeStepData,
@@ -462,7 +577,9 @@ const SOPHandlerComponent = {
             isReviewerMode, isMyTask, taskSteps, currentStep, shouldReadOnly, switchView,
             showRejectDialog, rejectReason, showRejectModal, confirmReject, auditStep, auditTask, deleteTask,
             getStatusColor, getStatusBadge, getStatusLabel, getStepStatus, getStepStatusClass, getStepData, openPreview, getDownloadLink,
-            getCompletedCount, getLatestRejectReason
+            getCompletedCount, getLatestRejectReason,
+            showCategoryModal, categories, newCategoryName, editingCatId, editingCatName, isAdmin,
+            addCategory, deleteCategory, startEdit, cancelEdit, updateCategory
         };
     }
 };

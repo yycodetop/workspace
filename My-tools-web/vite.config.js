@@ -27,6 +27,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
+        // target: 'https://codetopspace.cpolar.top',
         changeOrigin: true,
       }
     }
