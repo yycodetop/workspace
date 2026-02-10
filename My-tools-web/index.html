@@ -56,6 +56,7 @@
     <script src="teleprompter.js"></script> 
     <script src="sop-handler.js"></script>
     <script src="problem-handler.js"></script>
+    <script src="tuition-manager.js"></script>
   
     
 </head>
@@ -106,6 +107,11 @@
             <button onclick="switchTab('problem')" id="btn-problem" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-blue-400 hover:bg-white/5 transition-all hidden">
                 <i class="fa-solid fa-code text-lg transition-transform group-hover:scale-110"></i>
                 <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">题目研发</div>
+            </button>
+
+            <button onclick="switchTab('tuition')" id="btn-tuition" class="sidebar-btn group relative w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-emerald-400 hover:bg-white/5 transition-all hidden">
+                <i class="fa-solid fa-sack-dollar text-lg transition-transform group-hover:scale-110"></i>
+                <div class="absolute left-14 bg-gray-800 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 border border-white/10 whitespace-nowrap">学费管理</div>
             </button>
             
             <div class="h-px w-8 bg-white/5 mx-auto my-1"></div>
@@ -204,6 +210,7 @@
             toggle('btn-admin', hasPerm('admin'));
             toggle('btn-sop', true); // SOP 全员可见
             toggle('btn-problem', true); // 🔥 C++ 题目研发 全员可见
+            toggle('btn-tuition', true); // 或者直接传 true 先开启测试
         }
 
         function updateSidebarAvatar() {
@@ -240,6 +247,7 @@
                 else if (tabName === 'worklog') btn.classList.add('text-green-400');
                 else if (tabName === 'admin') btn.classList.add('text-purple-400', 'bg-purple-900/10');
                 else if (tabName === 'teleprompter') btn.classList.add('text-cyan-400');
+                else if (tabName === 'tuition') btn.classList.add('text-cyan-400');
                 else btn.classList.add('text-cyan-400');
             }
             
@@ -261,6 +269,8 @@
             
             // 🔥🔥 挂载 Problem Dev 组件
             else if (tabName === 'problem') TargetComponent = (typeof ProblemHandlerComponent !== 'undefined') ? ProblemHandlerComponent : null;
+            // 🔥🔥 新增这一行
+            else if (tabName === 'tuition') TargetComponent = (typeof TuitionManagerComponent !== 'undefined') ? TuitionManagerComponent : null;
 
             if (TargetComponent) {
                 currentApp = createApp(TargetComponent);
