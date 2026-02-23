@@ -1,9 +1,9 @@
 /**
- * Teleprompter Component - V18.0 (Multiline Board Support)
+ * Teleprompter Component - V19.0 (DOCX 导入支持)
  * 迭代内容：
- * 1. 样式重构：板书显示区域支持换行 (white-space: pre-wrap)。
- * 2. 布局优化：多行板书时的图标对齐与容器高度自适应。
- * 3. 继承 V17 所有功能 (时长计算、倒计时、精准控速等)。
+ * 1. 增加 DOCX 格式课件导入功能。
+ * 2. 严格遵循 DOCX 文档内部的换行符（Paragraph）作为提词器的换行依据。
+ * 3. 继承 V18 的多行板书等所有核心功能。
  */
 
 const TeleprompterTemplate = `
@@ -111,10 +111,10 @@ const TeleprompterTemplate = `
         .playing .script-line.preview-2 { opacity: 0.5; filter: blur(0.5px); }
         .playing .script-line.preview-2 .line-text-editable { color: #ccc; }
 
-        /* 需求1: 板书胶囊 (支持多行) */
+        /* 板书胶囊 */
         .inline-board-badge {
-            display: flex; /* 改为 Flex 布局 */
-            align-items: flex-start; /* 顶部对齐，适应多行 */
+            display: flex; 
+            align-items: flex-start; 
             gap: 10px;
             width: 90%; 
             font-size: 1em; 
@@ -126,11 +126,10 @@ const TeleprompterTemplate = `
             font-weight: bold; text-shadow: none; 
             pointer-events: none; user-select: none; 
             margin-top: 5px;
-            white-space: pre-wrap; /* 关键：允许文字换行 */
+            white-space: pre-wrap; 
             text-align: left;
         }
         .edit-mode .inline-board-badge { opacity: 0.6; cursor: pointer; pointer-events: auto; }
-        /* 图标微调，防止多行时偏离 */
         .inline-board-badge i { margin-top: 4px; } 
 
         /* 行内编辑按钮 */
@@ -158,11 +157,10 @@ const TeleprompterTemplate = `
         .board-viewport { flex: 1; background: #000; margin: 10px; border-radius: 6px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; overflow: hidden; relative; }
         .board-viewport img { width: 100%; height: 100%; object-fit: contain; }
         
-        /* 需求2: 监视器支持换行 */
         .board-text { 
             font-size: 24px; color: var(--accent); font-weight: bold; text-align: center; 
             padding: 20px; width: 100%; 
-            white-space: pre-wrap; /* 关键 */
+            white-space: pre-wrap;
             overflow-y: auto; max-height: 100%;
             display: flex; flex-direction: column; justify-content: center;
         }
@@ -247,7 +245,7 @@ const TeleprompterTemplate = `
                 <button class="tool-btn" onclick="document.getElementById('uploadInput').click()">
                     <i class="fa-regular fa-folder-open"></i> <span>导入</span>
                 </button>
-                <input type="file" id="uploadInput" hidden accept=".json,.txt,.pdf" @change="handleUpload">
+                <input type="file" id="uploadInput" hidden accept=".json,.txt,.pdf,.docx,.doc" @change="handleUpload">
             </div>
             <button class="tool-btn" @click="handleExport" title="导出备份">
                 <i class="fa-solid fa-download"></i> <span>导出</span>
@@ -263,7 +261,7 @@ const TeleprompterTemplate = `
             <div class="text-content" id="content">
                 <div v-if="lines.length === 0" style="text-align:center; padding-top:20vh; opacity:0.5;">
                     <i class="fa-solid fa-file-lines text-6xl mb-4"></i>
-                    <p>请导入 PDF / TXT / JSON 课件</p>
+                    <p>请导入 PDF / TXT / DOCX / JSON 课件</p>
                 </div>
 
                 <div v-for="(line, index) in lines" :key="line.id" 
@@ -438,7 +436,7 @@ const TeleprompterComponent = {
         let autoPauseTimer = null;
 
         const getH = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` });
-        const showToast = (m) => { toastMsg.value = m; setTimeout(() => toastMsg.value = '', 2000); };
+        const showToast = (m, type='info') => { toastMsg.value = m; setTimeout(() => toastMsg.value = '', 2500); };
 
         // --- Core Logic ---
         const animate = (timestamp) => {
@@ -648,7 +646,9 @@ const TeleprompterComponent = {
             const file = e.target.files[0];
             if (!file) return;
             
-            if (file.name.toLowerCase().endsWith('.json')) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            
+            if (ext === 'json') {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     try {
@@ -674,7 +674,8 @@ const TeleprompterComponent = {
             const reader = new FileReader();
             reader.onload = async (ev) => {
                 let rawLines = [];
-                if (file.type === 'application/pdf') {
+                
+                if (ext === 'pdf') {
                     showToast('PDF 解析中...');
                     const typedarray = new Uint8Array(ev.target.result);
                     const pdf = await pdfjsLib.getDocument(typedarray).promise;
@@ -692,12 +693,40 @@ const TeleprompterComponent = {
                         });
                         if(buffer.trim()) rawLines.push(buffer);
                     }
-                } else { rawLines = ev.target.result.split('\n'); }
+                } else if (ext === 'docx' || ext === 'doc') {
+                    showToast('DOCX 解析中...');
+                    if (typeof mammoth === 'undefined') {
+                        showToast('缺少解析库，请在 index.html 引入 mammoth.js', 'error');
+                        return;
+                    }
+                    try {
+                        // 使用 mammoth 提取纯文本，它会完美保留原有文档段落的换行逻辑
+                        const result = await mammoth.extractRawText({ arrayBuffer: ev.target.result });
+                        // 兼容各种操作系统的换行符，严格按换行进行拆分
+                        rawLines = result.value.split(/\r?\n/);
+                    } catch (err) {
+                        showToast('DOCX 解析失败，请确认是否为有效文档', 'error');
+                        console.error(err);
+                        return;
+                    }
+                } else { 
+                    // txt 处理
+                    rawLines = ev.target.result.split(/\r?\n/); 
+                }
+                
+                // 过滤掉空白行，并将文本装配为提词器的行结构
                 lines.value = rawLines.map((t, i) => ({ id: `L-${Date.now()}-${i}`, text: t.trim() })).filter(l => l.text);
                 notes.value = {}; currentFileName.value = file.name.replace(/\.[^/.]+$/, ""); currentScriptId.value = null; isShared.value = false;
-                saveToServer(); showToast(`导入成功: ${lines.value.length} 段`);
+                saveToServer(); 
+                showToast(`导入成功: ${lines.value.length} 段`);
             };
-            if (file.type === 'application/pdf') reader.readAsArrayBuffer(file); else reader.readAsText(file);
+            
+            // DOCX / PDF 需要读成 ArrayBuffer
+            if (ext === 'pdf' || ext === 'docx' || ext === 'doc') {
+                reader.readAsArrayBuffer(file); 
+            } else {
+                reader.readAsText(file);
+            }
         };
 
         const saveToServer = async () => {
